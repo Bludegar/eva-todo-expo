@@ -1,0 +1,60 @@
+import React from 'react';
+import { View, StyleSheet, ViewStyle } from 'react-native';
+
+export const colors = {
+  backgroundTop: '#1b1f3a',
+  backgroundBottom: '#7b2cbf',
+  neonPink: '#ff6ec7',
+  neonCyan: '#00f0ff',
+  accent: '#ffd166',
+  softWhite: '#f8f9fb',
+  translucent: 'rgba(255,255,255,0.08)',
+};
+
+export function BackgroundDecor() {
+  return (
+    <View style={[styles.container as ViewStyle]}>
+      <View style={[styles.circle, styles.circle1]} />
+      <View style={[styles.circle, styles.circle2]} />
+      <View style={[styles.gradient]} />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: -1,
+    // use style.pointerEvents to silence react-native-web deprecation warning
+    pointerEvents: 'none' as any,
+  },
+  gradient: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.backgroundTop,
+    opacity: 0.95,
+  },
+  circle: {
+    position: 'absolute',
+    borderRadius: 500,
+    opacity: 0.18,
+  },
+  circle1: {
+    width: 520,
+    height: 520,
+    right: -120,
+    top: -180,
+    backgroundColor: colors.neonPink,
+  },
+  circle2: {
+    width: 420,
+    height: 420,
+    left: -140,
+    bottom: -120,
+    backgroundColor: colors.neonCyan,
+  },
+});
+
+// placeholder para evitar error de default export faltante en expo-router
+export default function _ThemePlaceholder() {
+  return null;
+}

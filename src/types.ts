@@ -15,8 +15,3 @@ export type Todo = {
   completed: boolean;
   userId: string;
 };
-
-// placeholder para que expo-router deje de lanzar el error de default export faltante
-export default function _TypesPlaceholder() {
-  return null as any;
-}

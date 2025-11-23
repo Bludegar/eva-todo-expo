@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User } from '../_types';
+import { User } from '../types';
 
 // contexto simple de autenticacion
 // los comentarios estan en espanol sin tildes ni mayusculas
@@ -46,8 +46,3 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>
   );
 };
-
-// placeholder para evitar warnings del router
-export default function _AuthContextPlaceholder() {
-  return null;
-}

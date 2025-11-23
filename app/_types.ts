@@ -15,3 +15,8 @@ export type Todo = {
   completed: boolean;
   userId: string;
 };
+
+// placeholder para que expo-router no marque error
+export default function _TypesPlaceholder() {
+  return null as any;
+}

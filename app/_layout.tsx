@@ -1,7 +1,7 @@
 import React from 'react';
 import * as Router from 'expo-router';
 import { View, Text } from 'react-native';
-import { AuthProvider } from './_context/AuthContext';
+import { AuthProvider } from '../src/context/AuthContext';
 
 // layout principal del router con provider de autenticacion
 // intentamos renderizar Router.Slot si es un componente valido,

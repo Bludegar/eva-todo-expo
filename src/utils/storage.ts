@@ -20,8 +20,3 @@ export async function saveTodos(userId: string, todos: Todo[]) {
   const key = getTodosKey(userId);
   await AsyncStorage.setItem(key, JSON.stringify(todos));
 }
-
-// placeholder: export por default para que expo-router no trate el archivo como "invalido"
-export default function _StoragePlaceholder() {
-  return null as any;
-}

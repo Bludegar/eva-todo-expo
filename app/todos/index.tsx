@@ -1,11 +1,13 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, FlatList, Image, Button, StyleSheet, TouchableOpacity } from 'react-native';
-import { Link, useRouter } from 'expo-router';
-import { AuthContext } from '../_context/AuthContext';
-import { loadTodos, saveTodos } from '../_utils/storage';
-import { Todo } from '../_types';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
+import { AuthContext } from '../../src/context/AuthContext';
+import { loadTodos, saveTodos } from '../../src/utils/storage';
+import { Todo } from '../../src/types';
+import { BackgroundDecor, colors } from '../../src/theme';
 
-// pantalla de lista de tareas
+// lista de tareas
 export default function Todos() {
   const { user, logout } = useContext(AuthContext);
   const [todos, setTodos] = useState<Todo[]>([]);
@@ -32,47 +34,96 @@ export default function Todos() {
     persist(updated);
   };
 
+  // saludo y lista de tareas
+  const hour = new Date().getHours();
+  const greeting = hour >= 5 && hour < 12 ? 'Buen Día' : hour < 18 ? 'Buenas Tardes' : 'Buenas Noches';
+
   return (
-    <View style={{ flex: 1 }}>
-      <View style={styles.header}>
-        <Text style={styles.title}>mis tareas</Text>
-        <View style={{ flexDirection: 'row' }}>
-          <Button title="nuevo" onPress={() => router.push('/todos/create')} />
-          <Button title="salir" onPress={() => logout()} />
-        </View>
+    <View style={styles.wrapper}>
+      <BackgroundDecor />
+
+      <View style={styles.greetingContainer}>
+        <Text style={styles.greeting}>{greeting}</Text>
+        <Text style={styles.username}>{user?.username}</Text>
       </View>
 
-      <FlatList
-        data={todos}
+      <View style={styles.sep} />
+
+      {todos.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>Aun no tienes ninguna tarea añade una para comenzar</Text>
+          <TouchableOpacity style={styles.addButton} onPress={() => router.push('/todos/create')}>
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={todos}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => (
-          <View style={styles.item}>
-            {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.image} /> : null}
-            <View style={{ flex: 1 }}>
-              <Text style={item.completed ? styles.done : undefined}>{item.title}</Text>
+          <View style={styles.itemRow}>
+            {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.image} /> : <View style={styles.placeholder} />}
+            <View style={styles.info}>
+              <Text style={item.completed ? styles.done : styles.titleItem}>{item.title}</Text>
               {item.location ? (
-                <Text style={styles.loc}>lat: {item.location.latitude.toFixed(4)} lon: {item.location.longitude.toFixed(4)}</Text>
+                <Text style={styles.loc}>lat {item.location.latitude.toFixed(4)} lon {item.location.longitude.toFixed(4)}</Text>
               ) : null}
             </View>
-            <TouchableOpacity onPress={() => toggle(item.id)} style={styles.btn}>
-              <Text>{item.completed ? 'desmarcar' : 'completar'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => remove(item.id)} style={styles.btn}>
-              <Text>eliminar</Text>
-            </TouchableOpacity>
+
+            <View style={styles.actions}>
+              <TouchableOpacity onPress={() => toggle(item.id)} style={[styles.round, item.completed ? styles.roundDone : styles.roundPrimary]}>
+                <Ionicons name={item.completed ? 'checkmark' : 'checkmark-outline'} size={18} color="#111" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => remove(item.id)} style={[styles.round, styles.roundDanger]}>
+                <Ionicons name="trash-outline" size={18} color="#111" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
-      />
+        />
+      )}
+      {todos.length > 0 && (
+        <TouchableOpacity style={styles.addButtonFloating} onPress={() => router.push('/todos/create')}>
+          <Ionicons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { padding: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 20, textTransform: 'lowercase' },
-  item: { flexDirection: 'row', padding: 12, alignItems: 'center' },
-  image: { width: 64, height: 64, marginRight: 8, borderRadius: 6 },
-  btn: { padding: 8 },
+  wrapper: { flex: 1, backgroundColor: colors.backgroundTop },
+  greetingContainer: { padding: 16 },
+  greeting: { color: colors.softWhite, fontSize: 18, fontWeight: '700', textTransform: 'lowercase' },
+  username: { color: 'rgba(248,249,251,0.9)', marginTop: 6, textTransform: 'lowercase' },
+  sep: { height: 1, backgroundColor: colors.translucent },
+  itemRow: { flexDirection: 'row', padding: 12, alignItems: 'center', borderBottomWidth: 1, borderColor: colors.translucent },
+  image: { width: 64, height: 64, marginRight: 12, borderRadius: 6 },
+  placeholder: { width: 64, height: 64, marginRight: 12, borderRadius: 6, backgroundColor: 'rgba(255,255,255,0.03)' },
+  info: { flex: 1 },
   done: { textDecorationLine: 'line-through', color: '#888' },
-  loc: { fontSize: 12, color: '#666' },
+  titleItem: { color: colors.softWhite, fontWeight: '600' },
+  loc: { fontSize: 12, color: 'rgba(248,249,251,0.7)' },
+  actions: { flexDirection: 'row', alignItems: 'center' },
+  round: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
+  roundPrimary: { backgroundColor: colors.neonCyan },
+  roundDone: { backgroundColor: 'rgba(200,200,200,0.3)' },
+  roundEdit: { backgroundColor: colors.accent },
+  roundDanger: { backgroundColor: colors.neonPink },
+  actionText: { fontWeight: '700', fontSize: 14 },
+  emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  emptyText: { color: colors.softWhite, textAlign: 'center', marginBottom: 18 },
+  addButton: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#28a745', alignItems: 'center', justifyContent: 'center' },
+  addButtonFloating: {
+    position: 'absolute',
+    right: 18,
+    bottom: 28,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#28a745',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+  },
 });

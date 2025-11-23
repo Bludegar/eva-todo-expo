@@ -2,12 +2,8 @@ import React, { createContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 
-// contexto simple de autenticacion
-// los comentarios estan en espanol sin tildes ni mayusculas
-
 type AuthContextType = {
   user: User | null;
-  // login recibe email (se valida en la pantalla de login)
   login: (email: string) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -31,7 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = async (email: string) => {
-    // nota: login simulado, guardamos el email como id y username
+    // login simulado
     const u: User = { id: email, username: email };
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(u));
     setUser(u);
@@ -46,3 +42,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{ user, login, logout }}>{children}</AuthContext.Provider>
   );
 };
+
+// placeholder por compatibilidad con expo-router (evita error "missing default export")
+export default function _AuthContextPlaceholder() {
+  return null;
+}

@@ -16,8 +16,4 @@ npm install expo-router @react-native-async-storage/async-storage expo-file-syst
 npm start
 ```
 
-notas:
-- incluye login simple (sin backend) y tareas guardadas en AsyncStorage por usuario.
-- las fotos se guardan en el filesystem local del dispositivo.
-
 video: 

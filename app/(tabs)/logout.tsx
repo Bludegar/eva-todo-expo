@@ -1,18 +1,28 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { AuthContext } from '../../src/context/AuthContext';
 import { BackgroundDecor, colors } from '../../src/theme';
 
-// perfil
-export default function Perfil() {
-  const { user } = useContext(AuthContext);
+export default function LogoutScreen() {
+  const { logout } = useContext(AuthContext);
+  const router = useRouter();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        logout();
+      } finally {
+        router.replace('/login');
+      }
+    })();
+  }, []);
 
   return (
     <View style={styles.wrapper}>
       <BackgroundDecor />
       <View style={styles.container}>
-        <Text style={styles.title}>perfil</Text>
-        <Text style={styles.email}>Email: {user?.username}</Text>
+        <Text style={styles.text}>cerrando sesion...</Text>
       </View>
     </View>
   );
@@ -21,6 +31,5 @@ export default function Perfil() {
 const styles = StyleSheet.create({
   wrapper: { flex: 1, backgroundColor: colors.backgroundTop },
   container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, marginBottom: 12, color: colors.softWhite, fontWeight: '700' },
-  email: { color: 'rgba(248,249,251,0.9)' },
+  text: { color: colors.softWhite, fontSize: 16 },
 });

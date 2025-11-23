@@ -20,3 +20,8 @@ export async function saveTodos(userId: string, todos: Todo[]) {
   const key = getTodosKey(userId);
   await AsyncStorage.setItem(key, JSON.stringify(todos));
 }
+
+// placeholder para evitar error de "missing default export" en expo-router
+export default function _StoragePlaceholder() {
+  return null as any;
+}
