@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle, Platform } from 'react-native';
 
 export const colors = {
   backgroundTop: '#1b1f3a',
@@ -13,7 +13,7 @@ export const colors = {
 
 export function BackgroundDecor() {
   return (
-    <View style={[styles.container as ViewStyle]}>
+    <View style={[styles.container as ViewStyle]} pointerEvents={Platform.OS === 'web' ? ('none' as any) : undefined}>
       <View style={[styles.circle, styles.circle1]} />
       <View style={[styles.circle, styles.circle2]} />
       <View style={[styles.gradient]} />
@@ -25,8 +25,6 @@ const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
     zIndex: -1,
-    // use style.pointerEvents to silence react-native-web deprecation warning
-    pointerEvents: 'none' as any,
   },
   gradient: {
     ...StyleSheet.absoluteFillObject,
@@ -53,3 +51,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neonCyan,
   },
 });
+
+// tema por defecto (compatibilidad con componentes que importan default)
+const theme = {
+  colors: {
+    ...colors,
+    // mapas utilitarios para atajos usados en el codigo
+    background: colors.backgroundTop,
+    primary: colors.neonCyan,
+  },
+  BackgroundDecor,
+};
+
+export default theme;
