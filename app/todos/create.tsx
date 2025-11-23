@@ -3,7 +3,12 @@ import { View, Text, TextInput, Button, StyleSheet, Image, Alert, TouchableOpaci
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system';
-import { v4 as uuidv4 } from 'uuid';
+// uuid puede requerir crypto.getRandomValues en iOS; usar un fallback simple
+// mientras instalamos el polyfill `react-native-get-random-values`.
+// este fallback no es criptograficamente seguro pero es suficiente para IDs locales.
+function generateId() {
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
 import { AuthContext } from '../../src/context/AuthContext';
 import { Todo } from '../../src/types';
 import { loadTodos, saveTodos } from '../../src/utils/storage';
@@ -69,7 +74,7 @@ export default function CreateTodo() {
     // guardar imagen en filesystem si existe
     let savedUri: string | undefined = undefined;
     if (image) {
-      const filename = `${uuidv4()}.jpg`;
+      const filename = `${generateId()}.jpg`;
       // algunos entornos (web) no exponen documentDirectory; usar fallback
       const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
       const dest = baseDir ? baseDir + filename : undefined;
@@ -93,7 +98,7 @@ export default function CreateTodo() {
 
     const todos = await loadTodos(user.id);
     const newTodo: Todo = {
-      id: uuidv4(),
+      id: generateId(),
       title,
       imageUri: savedUri,
       location: location || undefined,
