@@ -22,7 +22,10 @@ export default function Layout() {
     React.useEffect(() => {
       // solo redirigir despues de que AuthProvider termino de inicializar
       if (!initializing && !token && canRenderSlot) {
-        if (!pathname.includes('/login')) {
+        // rutas publicas que no requieren token (permitir register y login)
+        const publicPaths = ['/login', '/register', '/index', '/'];
+        const isPublic = publicPaths.some(p => pathname.startsWith(p));
+        if (!isPublic) {
           router.replace('/login');
         }
       }

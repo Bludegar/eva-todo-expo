@@ -11,7 +11,8 @@ export default function FooterNav() {
   const insets = useSafeAreaInsets();
 
   // ocultar barra en la pantalla de login
-  if (pathname.includes('login')) return null;
+  // ocultar barra en las pantallas publicas de autenticacion
+  if (pathname.includes('login') || pathname.includes('register')) return null;
 
   const nav = (to: string) => () => router.push(to);
 

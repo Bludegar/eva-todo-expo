@@ -117,6 +117,11 @@ export async function loginRequest(email: string, password: string) {
   return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 }
 
+// registro de usuario (ajustar ruta/payload si la API difiere)
+export async function registerRequest(email: string, password: string) {
+  return request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+}
+
 export default {
   setBaseUrl,
   getBaseUrl,
@@ -130,4 +135,5 @@ export default {
   saveStoredToken,
   removeStoredToken,
   loginRequest,
+  registerRequest,
 };

@@ -53,6 +53,10 @@ export default function Login() {
         <TouchableOpacity style={styles.btn} onPress={onSubmit} accessibilityLabel="entrar" disabled={loading}>
           {loading ? <ActivityIndicator color="#111" /> : <Text style={styles.btnText}>entrar</Text>}
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.link} onPress={() => router.push('/register')}>
+          <Text style={styles.linkText}>¿No tienes cuenta? registrate</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -89,4 +93,6 @@ const styles = StyleSheet.create({
       : { shadowColor: colors.neonPink, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12 }),
   },
   btnText: { color: '#111', fontWeight: '700' },
+  link: { marginTop: 12 },
+  linkText: { color: colors.softWhite, textDecorationLine: 'underline' },
 });

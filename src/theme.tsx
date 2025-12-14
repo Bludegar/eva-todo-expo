@@ -13,7 +13,7 @@ export const colors = {
 
 export function BackgroundDecor() {
   return (
-    <View style={[styles.container as ViewStyle]} pointerEvents={Platform.OS === 'web' ? ('none' as any) : undefined}>
+    <View style={[styles.container as ViewStyle]} pointerEvents={'none'}>
       <View style={[styles.circle, styles.circle1]} />
       <View style={[styles.circle, styles.circle2]} />
       <View style={[styles.gradient]} />
@@ -24,7 +24,7 @@ export function BackgroundDecor() {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: -1,
+    zIndex: -9999,
   },
   gradient: {
     ...StyleSheet.absoluteFillObject,
