@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { AuthContext } from '../../src/context/AuthContext';
 import { BackgroundDecor, colors } from '../../src/theme';
-import { loadTodos } from '../../src/utils/storage';
+import todosService from '../../src/services/todos';
 import { Ionicons } from '@expo/vector-icons';
 
 // perfil: mostrar nombre y contadores de tareas
@@ -21,10 +21,14 @@ export default function Perfil() {
         }
         return;
       }
-      const todos = await loadTodos(user.id);
-      if (!mounted) return;
-      setTotal(todos.length);
-      setCompleted(todos.filter((t) => t.completed).length);
+      try {
+        const todos = await todosService.listTodos();
+        if (!mounted) return;
+        setTotal(todos.length);
+        setCompleted(todos.filter((t) => t.completed).length);
+      } catch (e) {
+        console.warn('error cargando contadores', e);
+      }
     }
     fetchCounts();
     // actualizar cuando el usuario cambie

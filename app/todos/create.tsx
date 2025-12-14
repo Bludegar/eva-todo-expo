@@ -3,15 +3,9 @@ import { View, Text, TextInput, Button, StyleSheet, Image, Alert, TouchableOpaci
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system';
-// uuid puede requerir crypto.getRandomValues en iOS; usar un fallback simple
-// mientras instalamos el polyfill `react-native-get-random-values`.
-// este fallback no es criptograficamente seguro pero es suficiente para IDs locales.
-function generateId() {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
+import todosService from '../../src/services/todos';
 import { AuthContext } from '../../src/context/AuthContext';
 import { Todo } from '../../src/types';
-import { loadTodos, saveTodos } from '../../src/utils/storage';
 import { BackgroundDecor, colors } from '../../src/theme';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -67,47 +61,22 @@ export default function CreateTodo() {
     setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
   };
 
+  const [saving, setSaving] = useState(false);
+
   const onSave = async () => {
     if (!user) return Alert.alert('no hay usuario');
     if (!title) return Alert.alert('ingresa un titulo');
 
-    // guardar imagen en filesystem si existe
-    let savedUri: string | undefined = undefined;
-    if (image) {
-      const filename = `${generateId()}.jpg`;
-      // algunos entornos (web) no exponen documentDirectory; usar fallback
-      const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
-      const dest = baseDir ? baseDir + filename : undefined;
-      try {
-        // en web evitamos copiar al filesystem local (no persistente)
-        if (dest && Platform.OS !== 'web') {
-          await FileSystem.copyAsync({ from: image, to: dest });
-          savedUri = dest;
-          const info = await (FileSystem as any).getInfoAsync(dest);
-          console.log('imagen guardada en:', dest, info.exists);
-        } else {
-          // no hay directorio disponible o estamos en web: mantenemos la uri original (data: o blob: o http)
-          savedUri = image;
-          console.log('no documentDirectory disponible o web, usando uri original');
-        }
-      } catch (e) {
-        console.warn('error guardando imagen, usando uri original', e);
-        savedUri = image;
-      }
+    setSaving(true);
+    try {
+      await todosService.createTodo({ title, imageUri: image, location });
+      router.replace('/todos');
+    } catch (e) {
+      console.warn('error creando tarea', e);
+      Alert.alert('error', e?.message || 'no se pudo crear la tarea');
+    } finally {
+      setSaving(false);
     }
-
-    const todos = await loadTodos(user.id);
-    const newTodo: Todo = {
-      id: generateId(),
-      title,
-      imageUri: savedUri,
-      location: location || undefined,
-      completed: false,
-      userId: user.id,
-    };
-    const updated = [newTodo, ...todos];
-    await saveTodos(user.id, updated);
-    router.replace('/todos');
   };
 
   return (

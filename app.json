@@ -26,5 +26,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     }
+    ,
+    "extra": {
+      "EXPO_PUBLIC_API_URL": "https://todo-list.dobleb.cl"
+    }
   }
 }

@@ -1,37 +1,63 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, FlatList, Image, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, Image, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '../../src/context/AuthContext';
-import { loadTodos, saveTodos } from '../../src/utils/storage';
 import { Todo } from '../../src/types';
 import { BackgroundDecor, colors } from '../../src/theme';
+import todosService from '../../src/services/todos';
 
 // lista de tareas
 export default function Todos() {
   const { user, logout } = useContext(AuthContext);
   const [todos, setTodos] = useState<Todo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     if (!user) return;
-    loadTodos(user.id).then(setTodos);
+    load();
   }, [user]);
 
-  const persist = async (newTodos: Todo[]) => {
+  const load = async () => {
     if (!user) return;
-    setTodos(newTodos);
-    await saveTodos(user.id, newTodos);
+    setLoading(true);
+    try {
+      const data = await todosService.listTodos();
+      setTodos(data);
+    } catch (e) {
+      console.warn('error cargando todos', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggle = (id: string) => {
-    const updated = todos.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t));
-    persist(updated);
+  const toggle = async (id: string, current: boolean) => {
+    try {
+      await todosService.updateTodo(id, { completed: !current } as any);
+      // optimista
+      setTodos((s) => s.map((t) => (t.id === id ? { ...t, completed: !current } : t)));
+    } catch (e) {
+      console.warn('error actualizando todo', e);
+      await load();
+    }
   };
 
-  const remove = (id: string) => {
-    const updated = todos.filter((t) => t.id !== id);
-    persist(updated);
+  const remove = async (id: string) => {
+    try {
+      await todosService.deleteTodo(id);
+      setTodos((s) => s.filter((t) => t.id !== id));
+    } catch (e) {
+      console.warn('error eliminando todo', e);
+      await load();
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
   };
 
   // saludo y lista de tareas
@@ -59,8 +85,9 @@ export default function Todos() {
       ) : (
         <FlatList
           data={todos}
-        keyExtractor={(i) => i.id}
-        renderItem={({ item }) => (
+          keyExtractor={(i) => i.id}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          renderItem={({ item }) => (
           <View style={styles.itemRow}>
             {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.image} /> : <View style={styles.placeholder} />}
             <View style={styles.info}>
@@ -71,7 +98,7 @@ export default function Todos() {
             </View>
 
             <View style={styles.actions}>
-              <TouchableOpacity onPress={() => toggle(item.id)} style={[styles.round, item.completed ? styles.roundDone : styles.roundPrimary]}>
+              <TouchableOpacity onPress={() => toggle(item.id, item.completed)} style={[styles.round, item.completed ? styles.roundDone : styles.roundPrimary]}>
                 <Ionicons name={item.completed ? 'checkmark' : 'checkmark-outline'} size={18} color="#111" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => remove(item.id)} style={[styles.round, styles.roundDanger]}>

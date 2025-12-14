@@ -1,25 +1,29 @@
 import React, { useContext, useState } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { AuthContext } from '../src/context/AuthContext';
 import { useRouter } from 'expo-router';
 import { BackgroundDecor, colors } from '../src/theme';
 
-// valida que la contraseña sea '1234' y muestra mensaje si es incorrecta
+// login contra backend: usa AuthContext.login(email,password)
 export default function Login() {
   const { login } = useContext(AuthContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const onSubmit = async () => {
     if (!email || !password) return Alert.alert('ingresa email y password');
-    if (password !== '1234') {
-      // mensaje segun requerimiento
-      return Alert.alert('Contraseña incorrecta');
+    setLoading(true);
+    try {
+      await login(email, password);
+      router.replace('/(tabs)/home');
+    } catch (e: any) {
+      console.warn('login error', e);
+      Alert.alert('error', e?.data?.message || e?.message || 'credenciales invalidas');
+    } finally {
+      setLoading(false);
     }
-    await login(email);
-    // al iniciar sesion correctamente, redirigir a tabs
-    router.replace('/(tabs)/home');
   };
 
   return (
@@ -38,7 +42,7 @@ export default function Login() {
           keyboardType="email-address"
         />
         <TextInput
-          placeholder="password (1234) "
+          placeholder="password"
           placeholderTextColor="rgba(255,255,255,0.7)"
           value={password}
           onChangeText={setPassword}
@@ -46,8 +50,8 @@ export default function Login() {
           secureTextEntry
         />
 
-        <TouchableOpacity style={styles.btn} onPress={onSubmit} accessibilityLabel="entrar">
-          <Text style={styles.btnText}>entrar</Text>
+        <TouchableOpacity style={styles.btn} onPress={onSubmit} accessibilityLabel="entrar" disabled={loading}>
+          {loading ? <ActivityIndicator color="#111" /> : <Text style={styles.btnText}>entrar</Text>}
         </TouchableOpacity>
       </View>
     </View>
