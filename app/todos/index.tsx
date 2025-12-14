@@ -3,6 +3,7 @@ import { View, Text, FlatList, Image, StyleSheet, TouchableOpacity, RefreshContr
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '../../src/context/AuthContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Todo } from '../../src/types';
 import { BackgroundDecor, colors } from '../../src/theme';
 import todosService from '../../src/services/todos';
@@ -25,7 +26,80 @@ export default function Todos() {
     setLoading(true);
     try {
       const data = await todosService.listTodos();
-      setTodos(data);
+
+      // aplicar posible imagen local guardada al crear (optimista)
+      try {
+        let raw = await AsyncStorage.getItem('eva_last_image');
+        // fallback a window.localStorage en web (devtools / debug convenience)
+        if (!raw && typeof window !== 'undefined' && window.localStorage) {
+          try {
+            raw = window.localStorage.getItem('eva_last_image');
+          } catch (e) {
+            raw = null;
+          }
+        }
+
+        // leer tambien posibles todos locales optimistas
+        let rawLocal = await AsyncStorage.getItem('eva_local_todos');
+        if (!rawLocal && typeof window !== 'undefined' && window.localStorage) {
+          try {
+            rawLocal = window.localStorage.getItem('eva_local_todos');
+          } catch (e) {
+            rawLocal = null;
+          }
+        }
+
+        if (raw) {
+          const saved = JSON.parse(raw);
+          let matched = false;
+          const mapped = data.map((it: Todo) => {
+            if (it.id === saved.id && !it.imageUri) {
+              matched = true;
+              return { ...it, imageUri: saved.uri };
+            }
+            return it;
+          });
+          // si no hubo coincidencia por id, aplicamos al primer item sin imageUri (fallback)
+          if (!matched) {
+            const idx = mapped.findIndex((it: Todo) => !it.imageUri);
+            if (idx >= 0) mapped[idx] = { ...mapped[idx], imageUri: saved.uri };
+          }
+          // si hay todos locales, prefijarlos
+          if (rawLocal) {
+            try {
+              const localArr = JSON.parse(rawLocal) as Todo[];
+              const dedup = localArr.filter((l) => !mapped.some((m) => m.id === l.id));
+              setTodos([...dedup, ...mapped]);
+            } catch (e) {
+              setTodos(mapped);
+            }
+          } else {
+            setTodos(mapped);
+          }
+          // limpiar la marca temporal de ambos storage
+          try {
+            await AsyncStorage.removeItem('eva_last_image');
+          } catch (e) {}
+          try {
+            if (typeof window !== 'undefined' && window.localStorage) window.localStorage.removeItem('eva_last_image');
+          } catch (e) {}
+        } else {
+          // no hay last_image mapping: aun asi, aplicar todos locales si existen
+          if (rawLocal) {
+            try {
+              const localArr = JSON.parse(rawLocal) as Todo[];
+              const dedup = localArr.filter((l) => !data.some((m) => m.id === l.id));
+              setTodos([...dedup, ...data]);
+            } catch (e) {
+              setTodos(data);
+            }
+          } else {
+            setTodos(data);
+          }
+        }
+      } catch (e) {
+        setTodos(data);
+      }
     } catch (e) {
       console.warn('error cargando todos', e);
     } finally {

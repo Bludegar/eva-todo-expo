@@ -2,11 +2,13 @@ import React, { useContext, useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Image, Alert, TouchableOpacity, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 import todosService from '../../src/services/todos';
 import { AuthContext } from '../../src/context/AuthContext';
 import { Todo } from '../../src/types';
 import { BackgroundDecor, colors } from '../../src/theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -16,6 +18,7 @@ export default function CreateTodo() {
   const [title, setTitle] = useState('');
   const [image, setImage] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
   const router = useRouter();
 
   const pickImage = async () => {
@@ -39,7 +42,6 @@ export default function CreateTodo() {
     }
 
     console.log('pickImage result:', { r, pickedUri });
-    // en web, algunas uris pueden ser rutas no accesibles 
     let finalUri = pickedUri;
     if (Platform.OS === 'web' && pickedUri && !pickedUri.startsWith('data:') && !pickedUri.startsWith('blob:')) {
       try {
@@ -51,7 +53,82 @@ export default function CreateTodo() {
       }
     }
 
-    setImage(finalUri);
+    // en nativo intentar redimensionar y comprimir la imagen antes de guardarla/subir
+    if (Platform.OS !== 'web' && finalUri) {
+      try {
+        const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+        const MAX_WIDTH = 1280;
+
+        const resizeAndCompress = async (uri: string, quality: number) => {
+          try {
+            // intentar redimensionar al ancho maximo manteniendo aspect ratio
+            const manip = await ImageManipulator.manipulateAsync(
+              uri,
+              [{ resize: { width: MAX_WIDTH } }],
+              { compress: quality, format: ImageManipulator.SaveFormat.JPEG }
+            );
+            return manip.uri;
+          } catch (e) {
+            return uri;
+          }
+        };
+
+        // primeros intentos: redimensionar y comprimir en varios pasos
+        let attemptUri = finalUri;
+        attemptUri = await resizeAndCompress(attemptUri, 0.8);
+
+        let info = await FileSystem.getInfoAsync(attemptUri).catch(() => ({ exists: false, size: 0 }));
+        let quality = 0.7;
+        let tries = 0;
+        while (((info.size || 0) > MAX_BYTES) && tries < 4) {
+          attemptUri = await resizeAndCompress(attemptUri, quality);
+          info = await FileSystem.getInfoAsync(attemptUri).catch(() => ({ exists: false, size: 0 }));
+          quality = Math.max(0.3, quality - 0.15);
+          tries += 1;
+        }
+
+        // si aun es demasiado grande, avisar al usuario y no setear la imagen
+        if ((info.size || 0) > MAX_BYTES) {
+          Alert.alert('imagen muy grande', 'la imagen sigue siendo muy grande despues de comprimir. elige otra o recortala.');
+          finalUri = undefined as any;
+        } else {
+          finalUri = attemptUri;
+        }
+      } catch (e) {
+        console.warn('compress error', e);
+      }
+    }
+
+    let savedUri = finalUri;
+    if (Platform.OS !== 'web' && finalUri) {
+      try {
+        const normalizeUri = (u: string) => {
+          if (!u) return u;
+          if ((Platform.OS === 'ios' || Platform.OS === 'android') && u.startsWith('/')) return `file://${u}`;
+          return u;
+        };
+        finalUri = normalizeUri(finalUri);
+        const imagesDir = FileSystem.documentDirectory + 'images/';
+        await FileSystem.makeDirectoryAsync(imagesDir, { intermediates: true }).catch(() => {});
+        const ext = finalUri.split('.').pop()?.split('?')[0] || 'jpg';
+        const name = `photo_${Date.now()}.${ext}`;
+        const dest = imagesDir + name;
+
+        await FileSystem.copyAsync({ from: finalUri, to: dest }).catch(async (err) => {
+          try {
+            await FileSystem.downloadAsync(finalUri, dest);
+          } catch (e) {
+            console.warn('no se pudo copiar imagen al filesystem, usando uri original', e);
+          }
+        });
+        const info = await FileSystem.getInfoAsync(dest);
+        if (info.exists) savedUri = dest;
+      } catch (e) {
+        console.warn('error guardando imagen en filesystem', e);
+      }
+    }
+
+    setImage(savedUri);
   };
 
   const takeLocation = async () => {
@@ -61,19 +138,70 @@ export default function CreateTodo() {
     setLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
   };
 
-  const [saving, setSaving] = useState(false);
-
   const onSave = async () => {
     if (!user) return Alert.alert('no hay usuario');
     if (!title) return Alert.alert('ingresa un titulo');
 
     setSaving(true);
     try {
-      await todosService.createTodo({ title, imageUri: image, location });
+      // crear un todo temporal para mostrar la imagen de inmediato (optimista)
+      const tempId = `local-${Date.now()}`;
+      const tempTodo = { id: tempId, title, completed: false, location: location || null, imageUri: image } as any;
+      try {
+        const raw = await AsyncStorage.getItem('eva_local_todos');
+        const arr = raw ? JSON.parse(raw) : [];
+        arr.unshift(tempTodo);
+        await AsyncStorage.setItem('eva_local_todos', JSON.stringify(arr));
+        // tambien guardar en localStorage para web devtools
+        try {
+          if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('eva_local_todos', JSON.stringify(arr));
+          }
+        } catch (e) {}
+      } catch (e) {
+        console.warn('no se pudo guardar temp todo', e);
+      }
+
+      // navegar inmediatamente para mostrar la lista con la imagen optimista
       router.replace('/todos');
+
+      // crear en background y limpiar el temp cuando el servidor confirme
+      (async () => {
+        try {
+          const created = await todosService.createTodo({ title, imageUri: image, location });
+          try {
+            // si el servidor no devolvio imageUri, guardar mapping especifico para aplicarlo
+            if (created && !created.imageUri && image) {
+              const mapping = { id: created.id, uri: image };
+              await AsyncStorage.setItem('eva_last_image', JSON.stringify(mapping));
+              try {
+                if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+                  window.localStorage.setItem('eva_last_image', JSON.stringify(mapping));
+                }
+              } catch (e) {}
+            }
+          } catch (e) {}
+
+          // eliminar temp de la lista local
+          try {
+            const raw2 = await AsyncStorage.getItem('eva_local_todos');
+            const arr2 = raw2 ? JSON.parse(raw2) : [];
+            const filtered = arr2.filter((t: any) => t.id !== tempId);
+            await AsyncStorage.setItem('eva_local_todos', JSON.stringify(filtered));
+            try {
+              if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem('eva_local_todos', JSON.stringify(filtered));
+              }
+            } catch (e) {}
+          } catch (e) {}
+        } catch (err) {
+          console.warn('error creando tarea en background', err);
+          // dejar el temp para reintento manual o indicar fallo al usuario
+        }
+      })();
     } catch (e) {
       console.warn('error creando tarea', e);
-      Alert.alert('error', e?.message || 'no se pudo crear la tarea');
+      Alert.alert('error', (e as any)?.message || 'no se pudo crear la tarea');
     } finally {
       setSaving(false);
     }

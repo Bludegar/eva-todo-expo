@@ -38,9 +38,17 @@ function headers(isJson = true, extra?: HeadersInit) {
 
 async function request(path: string, opts: RequestInit = {}) {
   const url = path.startsWith('http') ? path : `${apiBase.replace(/\/$/, '')}/${path.replace(/^\//, '')}`;
+
+  // detectar formdata de manera robusta: en react-native FormData puede no ser instanceof FormData
+  const body = (opts as any).body;
+  const isFormData =
+    typeof FormData !== 'undefined' && body instanceof FormData ? true : // navegadores
+    body && typeof (body as any).append === 'function' ? true : // react-native FormData tiene append
+    false;
+
   const init: RequestInit = {
     ...opts,
-    headers: { ...(opts.headers || {}), ...headers(!(opts.body instanceof FormData)) },
+    headers: { ...(opts.headers || {}), ...headers(!isFormData) },
   };
   const res = await fetch(url, init);
   const text = await res.text();
@@ -51,6 +59,10 @@ async function request(path: string, opts: RequestInit = {}) {
     data = text;
   }
   if (!res.ok) {
+    // log util para diagnostico: mostrar url, status y body del error
+    try {
+      console.warn('api request error', { url, status: res.status, data });
+    } catch (e) {}
     const err: any = new Error(data?.message || `HTTP ${res.status}`);
     err.status = res.status;
     err.data = data;
