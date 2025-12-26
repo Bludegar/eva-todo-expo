@@ -59,7 +59,7 @@ Server y opciones de despliegue
 - alternativa recomendada: presigned uploads (S3/GCS) — el backend solo emite URLs temporales y el cliente sube directamente, evitando problemas de limites y CORS.
 
 Video
-- https://youtube.com/shorts/V2oRYaC0Jys?feature=share
+- Respuestas a las 4 preguntas (video): https://youtu.be/6zG5YhvaXS4
 
 Asistencia
 - parte del trabajo de depuracion y optimizacion del codigo se realizo con la asistencia de GitHub Copilot, usado como herramienta para verificar errores comunes, proponer parches y mejorar la calidad del codigo.

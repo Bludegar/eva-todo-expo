@@ -14,9 +14,6 @@ export default function Todos() {
   const [refreshing, setRefreshing] = React.useState(false);
   const router = useRouter();
 
-  // useTodos already triggers initial load when auth/token is ready,
-  // avoid calling `load()` again here to prevent duplicate requests/logs.
-
   const toggle = async (id: string, current: boolean) => {
     try {
       await update(id, { completed: !current } as any);
