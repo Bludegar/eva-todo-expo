@@ -23,8 +23,53 @@ export default function Register() {
       await login(email, password);
       router.replace('/(tabs)/home');
     } catch (e: any) {
-      console.warn('register error', e);
-      Alert.alert('error', e?.data?.message || e?.message || 'no se pudo registrar');
+      
+      const status = e?.status;
+      const data = e?.data;
+      let serverMsg = 'no se pudo registrar';
+      if (data) {
+        if (typeof data === 'string') serverMsg = data;
+        else if (data.message) serverMsg = data.message;
+        else if (data.error) {
+          // manejar error anidado (ej: { success:false, error: { name: 'ZodError', message: '[...]' } })
+          if (typeof data.error === 'string') serverMsg = data.error;
+          else if (data.error.message) {
+            // a veces el backend devuelve un JSON string dentro de message
+            const m = data.error.message;
+            if (typeof m === 'string' && (m.trim().startsWith('[') || m.trim().startsWith('{'))) {
+              try {
+                const parsed = JSON.parse(m);
+                if (Array.isArray(parsed)) serverMsg = parsed.join('\n');
+                else serverMsg = JSON.stringify(parsed);
+              } catch (err) {
+                serverMsg = m;
+              }
+            } else {
+              serverMsg = m;
+            }
+          } else {
+            serverMsg = JSON.stringify(data.error);
+          }
+        }
+        else if (data.errors) {
+          try {
+            if (typeof data.errors === 'string') serverMsg = data.errors;
+            else if (Array.isArray(data.errors)) serverMsg = data.errors.join('\n');
+            else if (typeof data.errors === 'object') {
+              serverMsg = Object.entries(data.errors)
+                .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+                .join('\n');
+            }
+          } catch (err) {
+            serverMsg = JSON.stringify(data.errors);
+          }
+        } else {
+          serverMsg = JSON.stringify(data);
+        }
+      } else {
+        serverMsg = e?.message || serverMsg;
+      }
+      Alert.alert(status ? `error ${status}` : 'error', serverMsg || 'no se pudo registrar');
     } finally {
       setLoading(false);
     }
@@ -36,9 +81,9 @@ export default function Register() {
 
       <View style={styles.container}>
         <Text style={styles.title}>registrate</Text>
-        <TextInput placeholder="email" placeholderTextColor="rgba(255,255,255,0.7)" value={email} onChangeText={setEmail} style={styles.input} autoCapitalize="none" keyboardType="email-address" />
-        <TextInput placeholder="password" placeholderTextColor="rgba(255,255,255,0.7)" value={password} onChangeText={setPassword} style={styles.input} secureTextEntry />
-        <TextInput placeholder="repite password" placeholderTextColor="rgba(255,255,255,0.7)" value={confirm} onChangeText={setConfirm} style={styles.input} secureTextEntry />
+        <TextInput placeholder="email" placeholderTextColor="rgba(255,255,255,0.7)" value={email} onChangeText={setEmail} style={styles.input} autoCapitalize="none" keyboardType="email-address" autoComplete="off" textContentType="username" name="email" autoCorrect={false} spellCheck={false} data-lpignore="true" aria-autocomplete="none" />
+        <TextInput placeholder="password" placeholderTextColor="rgba(255,255,255,0.7)" value={password} onChangeText={setPassword} style={styles.input} secureTextEntry autoComplete="off" textContentType="newPassword" name="password" autoCorrect={false} spellCheck={false} data-lpignore="true" aria-autocomplete="none" />
+        <TextInput placeholder="repite password" placeholderTextColor="rgba(255,255,255,0.7)" value={confirm} onChangeText={setConfirm} style={styles.input} secureTextEntry autoComplete="off" textContentType="newPassword" name="confirm_password" autoCorrect={false} spellCheck={false} data-lpignore="true" aria-autocomplete="none" />
 
         <TouchableOpacity style={[styles.btn, loading && { opacity: 0.7 }]} onPress={onRegister} disabled={loading} accessibilityLabel="crear-cuenta">
           {loading ? <ActivityIndicator color="#111" /> : <Text style={styles.btnText}>crear cuenta</Text>}

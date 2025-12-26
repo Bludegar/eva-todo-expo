@@ -4,16 +4,16 @@ App ejemplo (Expo + React Native + TypeScript) — lista de tareas por usuario.
 
 Resumen de funcionamiento
 - login simple por email (la contrasena por defecto es `1234`).
-- cada usuario tiene su propia lista de tareas (persistidas en `AsyncStorage` bajo la clave `todos_<userId>`).
-- cada tarea: titulo, foto (se guarda en filesystem cuando es posible), ubicacion (opcional) y estado `completed`.
-- las imagenes se manejan con `expo-image-picker` y se persisten en `expo-file-system` en dispositivos nativos; en web se usan data/blob o data-URIs.
+- toda la data de tareas proviene del backend obligatorio (`EXPO_PUBLIC_API_URL`). no se persisten tareas localmente.
+- cada tarea: titulo, foto (subida al backend y asociada a la tarea), ubicacion (opcional) y estado `completed`.
+- las imagenes se manejan con `expo-image-picker`; en nativo se suben por `multipart/form-data` y en web se usa un fallback con base64/data-URI si es necesario.
 - se usa `expo-location` para pedir la ubicacion cuando el usuario lo solicita.
 
-Comportamiento reciente y notas importantes
-- flujo optimista de imagenes: al crear una tarea la app muestra inmediatamente una miniatura guardada localmente para mejorar la experiencia del autor (clave `eva_local_todos`).
-- si el servidor no devuelve una URL publica para la imagen, la app mantiene un mapeo temporal `eva_last_image` para aplicar la miniatura al listar tareas tras la confirmacion del servidor.
-- en web la subida de imagenes usa preferentemente un fallback JSON con base64/data-URI (evita problemas de CORS y rechazos por multipart desde algunas APIs). en nativo la app intenta usar `multipart/form-data` cuando es posible.
-- el backend de ejemplo puede no devolver `imageUrl` o no exponer las imagenes publicas; en ese caso las fotos siguen funcionando localmente pero no seran visibles desde otros dispositivos.
+Notas importantes
+- la aplicacion requiere un backend (ver seccion "Backend obligatorio" y la variable `EXPO_PUBLIC_API_URL`).
+- token de autenticacion se persiste en `AsyncStorage` (clave `eva_token`) y se usa para proteger rutas.
+- toda la data de tareas se obtiene y modifica via el backend (no se guardan tareas localmente).
+- en web la subida de imagenes puede usar un fallback con base64/data-URI para evitar problemas de CORS; en nativo se usa `multipart/form-data`.
 
 Instalacion
 1. clona el repo y entra en la carpeta del proyecto:
@@ -44,11 +44,9 @@ Uso rapido
 - el footer de navegacion contiene `home`, `perfil` y `salir`.
 
 Persistencia y datos
-- las tareas se guardan por usuario en `AsyncStorage` con la clave `todos_<userId>`.
-- la app tambien usa dos claves auxiliares para manejo optimista/local:
-	- `eva_local_todos`: lista de tareas temporales mostradas inmediatamente al crear (se limpian cuando el servidor confirma).
-	- `eva_last_image`: mapeo temporal { id, uri } para aplicar una imagen local a una tarea creada que no recibio `imageUrl` del servidor.
-- las fotos se guardan en el filesystem local en dispositivos nativos; en web la app mantiene data/blob URLs o data-URIs.
+- las tareas se obtienen siempre del backend configurado en `EXPO_PUBLIC_API_URL`.
+- el token de autenticacion se guarda en `AsyncStorage` (clave `eva_token`).
+- las fotos se guardan en el filesystem local en dispositivos nativos solo como temporal antes de subirlas; el backend devuelve la `imageUrl` que se usa para mostrar las miniaturas.
 
 Notas tecnicas
 - router: `expo-router` (file-based routing). Coloca utilidades fuera de la carpeta `app/` (por ejemplo en `src/`) para evitar que el router las trate como rutas.

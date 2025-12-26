@@ -19,7 +19,7 @@ export default function Login() {
       await login(email, password);
       router.replace('/(tabs)/home');
     } catch (e: any) {
-      console.warn('login error', e);
+      
       Alert.alert('error', e?.data?.message || e?.message || 'credenciales invalidas');
     } finally {
       setLoading(false);
@@ -40,6 +40,13 @@ export default function Login() {
           style={styles.input}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoComplete="off"
+          textContentType="username"
+          name="email"
+          autoCorrect={false}
+          spellCheck={false}
+          data-lpignore="true"
+          aria-autocomplete="none"
         />
         <TextInput
           placeholder="password"
@@ -48,6 +55,13 @@ export default function Login() {
           onChangeText={setPassword}
           style={styles.input}
           secureTextEntry
+          autoComplete="off"
+          textContentType="password"
+          name="password"
+          autoCorrect={false}
+          spellCheck={false}
+          data-lpignore="true"
+          aria-autocomplete="none"
         />
 
         <TouchableOpacity style={styles.btn} onPress={onSubmit} accessibilityLabel="entrar" disabled={loading}>

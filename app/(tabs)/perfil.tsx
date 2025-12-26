@@ -27,7 +27,7 @@ export default function Perfil() {
         setTotal(todos.length);
         setCompleted(todos.filter((t) => t.completed).length);
       } catch (e) {
-        console.warn('error cargando contadores', e);
+        
       }
     }
     fetchCounts();

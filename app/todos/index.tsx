@@ -1,129 +1,36 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext } from 'react';
 import { View, Text, FlatList, Image, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { AuthContext } from '../../src/context/AuthContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Todo } from '../../src/types';
 import { BackgroundDecor, colors } from '../../src/theme';
-import todosService from '../../src/services/todos';
+import useTodos from '../../src/hooks/useTodos';
 
 // lista de tareas
 export default function Todos() {
   const { user, logout } = useContext(AuthContext);
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const { items: todos, loading, error, load, update, remove: hookRemove } = useTodos();
+  const [refreshing, setRefreshing] = React.useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    if (!user) return;
-    load();
-  }, [user]);
-
-  const load = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const data = await todosService.listTodos();
-
-      // aplicar posible imagen local guardada al crear (optimista)
-      try {
-        let raw = await AsyncStorage.getItem('eva_last_image');
-        // fallback a window.localStorage en web (devtools / debug convenience)
-        if (!raw && typeof window !== 'undefined' && window.localStorage) {
-          try {
-            raw = window.localStorage.getItem('eva_last_image');
-          } catch (e) {
-            raw = null;
-          }
-        }
-
-        // leer tambien posibles todos locales optimistas
-        let rawLocal = await AsyncStorage.getItem('eva_local_todos');
-        if (!rawLocal && typeof window !== 'undefined' && window.localStorage) {
-          try {
-            rawLocal = window.localStorage.getItem('eva_local_todos');
-          } catch (e) {
-            rawLocal = null;
-          }
-        }
-
-        if (raw) {
-          const saved = JSON.parse(raw);
-          let matched = false;
-          const mapped = data.map((it: Todo) => {
-            if (it.id === saved.id && !it.imageUri) {
-              matched = true;
-              return { ...it, imageUri: saved.uri };
-            }
-            return it;
-          });
-          // si no hubo coincidencia por id, aplicamos al primer item sin imageUri (fallback)
-          if (!matched) {
-            const idx = mapped.findIndex((it: Todo) => !it.imageUri);
-            if (idx >= 0) mapped[idx] = { ...mapped[idx], imageUri: saved.uri };
-          }
-          // si hay todos locales, prefijarlos
-          if (rawLocal) {
-            try {
-              const localArr = JSON.parse(rawLocal) as Todo[];
-              const dedup = localArr.filter((l) => !mapped.some((m) => m.id === l.id));
-              setTodos([...dedup, ...mapped]);
-            } catch (e) {
-              setTodos(mapped);
-            }
-          } else {
-            setTodos(mapped);
-          }
-          // limpiar la marca temporal de ambos storage
-          try {
-            await AsyncStorage.removeItem('eva_last_image');
-          } catch (e) {}
-          try {
-            if (typeof window !== 'undefined' && window.localStorage) window.localStorage.removeItem('eva_last_image');
-          } catch (e) {}
-        } else {
-          // no hay last_image mapping: aun asi, aplicar todos locales si existen
-          if (rawLocal) {
-            try {
-              const localArr = JSON.parse(rawLocal) as Todo[];
-              const dedup = localArr.filter((l) => !data.some((m) => m.id === l.id));
-              setTodos([...dedup, ...data]);
-            } catch (e) {
-              setTodos(data);
-            }
-          } else {
-            setTodos(data);
-          }
-        }
-      } catch (e) {
-        setTodos(data);
-      }
-    } catch (e) {
-      console.warn('error cargando todos', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // useTodos already triggers initial load when auth/token is ready,
+  // avoid calling `load()` again here to prevent duplicate requests/logs.
 
   const toggle = async (id: string, current: boolean) => {
     try {
-      await todosService.updateTodo(id, { completed: !current } as any);
-      // optimista
-      setTodos((s) => s.map((t) => (t.id === id ? { ...t, completed: !current } : t)));
+      await update(id, { completed: !current } as any);
     } catch (e) {
-      console.warn('error actualizando todo', e);
+      
       await load();
     }
   };
 
   const remove = async (id: string) => {
     try {
-      await todosService.deleteTodo(id);
-      setTodos((s) => s.filter((t) => t.id !== id));
+      await hookRemove(id);
     } catch (e) {
-      console.warn('error eliminando todo', e);
+      
       await load();
     }
   };
@@ -163,11 +70,14 @@ export default function Todos() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => (
           <View style={styles.itemRow}>
-            {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.image} /> : <View style={styles.placeholder} />}
+            {item.imageUri ? <Image source={{ uri: item.imageUri }} style={styles.image} resizeMode="cover" /> : <View style={styles.placeholder} />}
             <View style={styles.info}>
               <Text style={item.completed ? styles.done : styles.titleItem}>{item.title}</Text>
               {item.location ? (
                 <Text style={styles.loc}>lat {item.location.latitude.toFixed(4)} lon {item.location.longitude.toFixed(4)}</Text>
+              ) : null}
+              {item.imageUri ? (
+                <Text style={styles.url} numberOfLines={1} ellipsizeMode="middle">{item.imageUri}</Text>
               ) : null}
             </View>
 
@@ -205,6 +115,7 @@ const styles = StyleSheet.create({
   done: { textDecorationLine: 'line-through', color: '#888' },
   titleItem: { color: colors.softWhite, fontWeight: '600' },
   loc: { fontSize: 12, color: 'rgba(248,249,251,0.7)' },
+  url: { fontSize: 11, color: 'rgba(200,200,200,0.8)', marginTop: 4 },
   actions: { flexDirection: 'row', alignItems: 'center' },
   round: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   roundPrimary: { backgroundColor: colors.neonCyan },

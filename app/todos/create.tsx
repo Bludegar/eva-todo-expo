@@ -4,17 +4,17 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
-import todosService from '../../src/services/todos';
+import useTodos from '../../src/hooks/useTodos';
 import { AuthContext } from '../../src/context/AuthContext';
 import { Todo } from '../../src/types';
 import { BackgroundDecor, colors } from '../../src/theme';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 //crear tarea
 export default function CreateTodo() {
   const { user } = useContext(AuthContext);
+  const { create } = useTodos();
   const [title, setTitle] = useState('');
   const [image, setImage] = useState<string | undefined>(undefined);
   const [location, setLocation] = useState<any>(null);
@@ -41,7 +41,7 @@ export default function CreateTodo() {
       else if (anyR.base64) pickedUri = `data:image/jpeg;base64,${anyR.base64}`;
     }
 
-    console.log('pickImage result:', { r, pickedUri });
+    
     let finalUri = pickedUri;
     if (Platform.OS === 'web' && pickedUri && !pickedUri.startsWith('data:') && !pickedUri.startsWith('blob:')) {
       try {
@@ -95,7 +95,7 @@ export default function CreateTodo() {
           finalUri = attemptUri;
         }
       } catch (e) {
-        console.warn('compress error', e);
+    
       }
     }
 
@@ -118,13 +118,13 @@ export default function CreateTodo() {
           try {
             await FileSystem.downloadAsync(finalUri, dest);
           } catch (e) {
-            console.warn('no se pudo copiar imagen al filesystem, usando uri original', e);
+          
           }
         });
         const info = await FileSystem.getInfoAsync(dest);
         if (info.exists) savedUri = dest;
       } catch (e) {
-        console.warn('error guardando imagen en filesystem', e);
+        
       }
     }
 
@@ -141,67 +141,17 @@ export default function CreateTodo() {
   const onSave = async () => {
     if (!user) return Alert.alert('no hay usuario');
     if (!title) return Alert.alert('ingresa un titulo');
-
     setSaving(true);
     try {
-      // crear un todo temporal para mostrar la imagen de inmediato (optimista)
-      const tempId = `local-${Date.now()}`;
-      const tempTodo = { id: tempId, title, completed: false, location: location || null, imageUri: image } as any;
-      try {
-        const raw = await AsyncStorage.getItem('eva_local_todos');
-        const arr = raw ? JSON.parse(raw) : [];
-        arr.unshift(tempTodo);
-        await AsyncStorage.setItem('eva_local_todos', JSON.stringify(arr));
-        // tambien guardar en localStorage para web devtools
-        try {
-          if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
-            window.localStorage.setItem('eva_local_todos', JSON.stringify(arr));
-          }
-        } catch (e) {}
-      } catch (e) {
-        console.warn('no se pudo guardar temp todo', e);
-      }
-
-      // navegar inmediatamente para mostrar la lista con la imagen optimista
+      // crear la tarea via el hook useTodos (logica de negocio en el hook)
+      const created = await create({ title, imageUri: image, location });
+      
+      // volver a la lista
       router.replace('/todos');
-
-      // crear en background y limpiar el temp cuando el servidor confirme
-      (async () => {
-        try {
-          const created = await todosService.createTodo({ title, imageUri: image, location });
-          try {
-            // si el servidor no devolvio imageUri, guardar mapping especifico para aplicarlo
-            if (created && !created.imageUri && image) {
-              const mapping = { id: created.id, uri: image };
-              await AsyncStorage.setItem('eva_last_image', JSON.stringify(mapping));
-              try {
-                if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
-                  window.localStorage.setItem('eva_last_image', JSON.stringify(mapping));
-                }
-              } catch (e) {}
-            }
-          } catch (e) {}
-
-          // eliminar temp de la lista local
-          try {
-            const raw2 = await AsyncStorage.getItem('eva_local_todos');
-            const arr2 = raw2 ? JSON.parse(raw2) : [];
-            const filtered = arr2.filter((t: any) => t.id !== tempId);
-            await AsyncStorage.setItem('eva_local_todos', JSON.stringify(filtered));
-            try {
-              if (Platform.OS === 'web' && typeof window !== 'undefined' && window.localStorage) {
-                window.localStorage.setItem('eva_local_todos', JSON.stringify(filtered));
-              }
-            } catch (e) {}
-          } catch (e) {}
-        } catch (err) {
-          console.warn('error creando tarea en background', err);
-          // dejar el temp para reintento manual o indicar fallo al usuario
-        }
-      })();
     } catch (e) {
-      console.warn('error creando tarea', e);
-      Alert.alert('error', (e as any)?.message || 'no se pudo crear la tarea');
+      
+      const serverMsg = (e as any)?.data?.message || (e as any)?.data?.error || (e as any)?.message || JSON.stringify((e as any)?.data || e);
+      Alert.alert('error', serverMsg);
     } finally {
       setSaving(false);
     }
@@ -218,7 +168,7 @@ export default function CreateTodo() {
           <Ionicons name="image-outline" size={18} color="#fff" style={styles.actionIcon} />
           <Text style={styles.actionText}>elegir foto</Text>
         </TouchableOpacity>
-        {image ? <Image source={{ uri: image }} style={styles.preview} /> : null}
+        {image ? <Image source={{ uri: image }} style={styles.preview} resizeMode="contain" /> : null}
 
         <TouchableOpacity style={styles.actionButton} onPress={takeLocation}>
           <Ionicons name="location-outline" size={18} color="#fff" style={styles.actionIcon} />

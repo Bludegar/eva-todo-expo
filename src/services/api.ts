@@ -1,14 +1,9 @@
-// servicio basico para llamadas al backend
 // usa fetch y permite configurar token global
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 const STORAGE_TOKEN_KEY = 'eva_token';
 
-// resolver la URL base en este orden:
-// 1. process.env.EXPO_PUBLIC_API_URL (si usas variables de entorno en dev)
-// 2. app.json/app.config.js -> expo.extra.EXPO_PUBLIC_API_URL (accesible via Constants.expoConfig)
-// 3. fallback por defecto
 const DEFAULT_BASE =
   process.env.EXPO_PUBLIC_API_URL ||
   (Constants?.expoConfig as any)?.extra?.EXPO_PUBLIC_API_URL ||
@@ -50,6 +45,18 @@ async function request(path: string, opts: RequestInit = {}) {
     ...opts,
     headers: { ...(opts.headers || {}), ...headers(!isFormData) },
   };
+  // asegurar que Authorization siempre venga desde authToken (evitar sobrescrituras)
+  try {
+    if (!init.headers) init.headers = {} as any;
+    if (authToken) (init.headers as any)['Authorization'] = `Bearer ${authToken}`;
+  } catch (err) {}
+  // log diagnostico corto (no imprimir token completo)
+  try {
+    const tokenPreview = authToken ? `${String(authToken).slice(0, 6)}...${String(authToken).slice(-4)}` : null;
+    // tambien loggear cabeceras basicas para diagnostico (sin token completo)
+    const headerKeys = init.headers ? Object.keys(init.headers as any) : [];
+    console.debug('api request', { url, method: init.method || 'GET', hasToken: !!authToken, tokenPreview, isFormData, headerKeys });
+  } catch (err) {}
   const res = await fetch(url, init);
   const text = await res.text();
   let data: any = undefined;
@@ -123,13 +130,12 @@ export async function removeStoredToken() {
   }
 }
 
-// ejemplo de endpoint de login. Ajustar segun la API real.
+// login de usuario
 export async function loginRequest(email: string, password: string) {
-  // muchos backends usan /auth/login o /login. Ajusta si es necesario.
   return request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 }
 
-// registro de usuario (ajustar ruta/payload si la API difiere)
+// registro de usuario
 export async function registerRequest(email: string, password: string) {
   return request('/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
 }

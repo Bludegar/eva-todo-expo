@@ -13,7 +13,7 @@ export const colors = {
 
 export function BackgroundDecor() {
   return (
-    <View style={[styles.container as ViewStyle]} pointerEvents={'none'}>
+    <View style={[styles.container as ViewStyle, { pointerEvents: 'none' }]}>
       <View style={[styles.circle, styles.circle1]} />
       <View style={[styles.circle, styles.circle2]} />
       <View style={[styles.gradient]} />

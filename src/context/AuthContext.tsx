@@ -52,12 +52,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     // llamar al backend para autenticar
     try {
+      console.log('Auth: enviando credenciales al backend', { email });
       const res: any = await api.loginRequest(email, password);
       // esperar que la respuesta contenga token y optionalmente user
       const tokenResp = res?.token || res?.accessToken || res?.data?.token;
       const userResp = res?.user || res?.data?.user;
       if (!tokenResp) throw new Error('token not returned by server');
 
+      console.log('Auth: token recibido desde backend');
       await saveStoredToken(tokenResp);
       setLocalToken(tokenResp);
       setToken(tokenResp);
@@ -67,7 +69,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(u));
       setUser(u);
     } catch (e: any) {
-      // propagar error para mostrar en UI
+      // log y propagar error para mostrar en UI
+      const status = e?.status || e?.data?.status;
       throw e;
     }
   };
